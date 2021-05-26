@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: dmarcvisualizer 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dmarcvisualizer
+  template:
+    metadata:
+      labels:
+        app: dmarcvisualizer 
+    spec:
+      containers:
+        - name: dmarcvisualizer 
+          image: ttseaksregistry.azurecr.io/dmarcvisualizer
+          ports:
+          - containerPort: 80
