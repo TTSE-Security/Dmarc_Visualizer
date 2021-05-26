@@ -1,0 +1,59 @@
+version: '3.7'
+services:
+  parsedmarc:
+    build: ./parsedmarc/
+    volumes:
+      - ./parsedmarc/parsedmarc.ini:/parsedmarc.ini:ro
+      - ./parsedmarc/GeoLite2-Country.mmdb:/usr/share/GeoIP/GeoLite2-Country.mmdb:ro
+      - ./parsedmarc/GeoLite2-City.mmdb:/usr/share/GeoIP/GeoLite2-City.mmdb:ro
+      #- ./parsedmarc/output_files:/output
+    command: wait-for elasticsearch:9200 -t 60 -- venv/bin/parsedmarc -c /parsedmarc.ini
+    depends_on:
+      - elasticsearch
+
+  # @see https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html
+  elasticsearch:
+    # There seems to be no :latest image - so a version has to be specified explicitly
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
+    # Open distribution doesn't seem to work? Not sure why
+    # image: amazon/opendistro-for-elasticsearch
+    environment:
+      - node.name=elasticsearch
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+    volumes:
+      - es-data01:/usr/share/elasticsearch/data:rw
+    ports:
+      - 9200:9200
+   # networks:
+    #  - es-network
+  
+  # @see https://grafana.com/docs/grafana/latest/installation/docker/
+  # @see https://grafana.com/docs/grafana/latest/installation/configure-docker/
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - ./grafana/data:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning/:ro
+      # using standard file mapping instead of secret here, because podman-compose doesn't know about secrets
+      - ./secrets/grafana_admin_password.txt:/var/run/grafana_admin_password:ro
+    ports:
+      - 3000:3000
+    environment:
+      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /var/run/grafana_admin_password
+  kibana:
+   image: docker.elastic.co/kibana/kibana-oss:7.10.2
+   environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+   ports:
+      - 5601:5601
+  
+  
+volumes:
+   es-data01:
+      driver: local
+        
+#networks:
+#  es-network:
+#    driver: bridge
